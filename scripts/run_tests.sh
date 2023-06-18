@@ -1,0 +1,3 @@
+printf "Running Tests: "
+
+eval $(cat test.env) go test ./...

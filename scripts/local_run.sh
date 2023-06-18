@@ -1,0 +1,1 @@
+eval $(cat development.env) gin -p 5001 --immediate --build ./cmd main.go
