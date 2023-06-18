@@ -28,7 +28,7 @@ func Init(router *httprouter.Router) {
 	})
 	authService = services.NewAuthService()
 
-	authController := authcontroller.NewAuthController(authService)
+	authController := authcontroller.NewAuthController()
 	router.POST("/login", serveEndpoint(authController.LoginUser))
 
 	userController := userscontroller.NewUsersController()

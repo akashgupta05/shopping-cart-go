@@ -39,7 +39,7 @@ func (ac *AuthController) LoginUser(rw http.ResponseWriter, r *http.Request, ps 
 
 func validateLoginRequest(loginPayload *LoginPayload) error {
 	if loginPayload.Username == "" {
-		return errors.New("missing user_id")
+		return errors.New("missing username")
 	}
 
 	if loginPayload.Password == "" {

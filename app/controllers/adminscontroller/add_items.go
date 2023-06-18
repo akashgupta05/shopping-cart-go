@@ -54,7 +54,7 @@ func translateRequestPayloadToModel(addItems []*AddItemsPayload) []*models.Item 
 func validateAddItemsRequest(addItems []*AddItemsPayload) error {
 	for _, item := range addItems {
 		if item.ItemName == "" {
-			return errors.New("missing user_id")
+			return errors.New("missing item_name")
 		}
 
 		if item.Quantity <= 0 {

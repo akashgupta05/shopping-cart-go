@@ -1,5 +1,7 @@
 package services
 
+//go:generate mockgen -source=item_service.go -destination=mock/mock_item_service.go -package=mock
+
 import (
 	"github.com/akashgupta05/shopping-cart-go/app/models"
 	"github.com/akashgupta05/shopping-cart-go/app/repository"

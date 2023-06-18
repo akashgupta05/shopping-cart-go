@@ -1,5 +1,7 @@
 package services
 
+//go:generate mockgen -source=auth_service.go -destination=mock/mock_auth_service.go -package=mock
+
 import (
 	"errors"
 	"fmt"
