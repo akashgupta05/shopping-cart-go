@@ -37,7 +37,7 @@ func Init(router *httprouter.Router) {
 	router.GET("/items", userAuthMiddleware(userController.ListItems))
 	router.GET("/users/cart", userAuthMiddleware(userController.GetCart))
 	router.POST("/users/cart/add", userAuthMiddleware(userController.AddToCart))
-	router.POST("/users/cart/remove", userAuthMiddleware(userController.RemoveItem))
+	router.DELETE("/users/cart/:item_id", userAuthMiddleware(userController.RemoveItem))
 
 	adminsController := adminscontroller.NewAdminsController()
 	router.POST("/admins/suspend_user", adminAuthMiddleware(adminsController.SuspendUser))
