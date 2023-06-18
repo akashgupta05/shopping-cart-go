@@ -15,24 +15,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// func main() {
-// 	router := mux.NewRouter()
-
-// 	router.HandleFunc("/register", handlers.Register).Methods("POST")
-// 	router.HandleFunc("/login", handlers.Login).Methods("POST")
-
-// 	// Restricted routes for admin
-// 	router.HandleFunc("/admin/add-item", utils.RBAC(utils.RoleAdmin, handlers.AddItem)).Methods("POST")
-// 	router.HandleFunc("/admin/suspend-user", utils.RBAC(utils.RoleAdmin, handlers.SuspendUser)).Methods("POST")
-
-// 	// Restricted routes for user
-// 	router.HandleFunc("/user/list-items", utils.RBAC(utils.RoleUser, handlers.ListItems)).Methods("GET")
-// 	router.HandleFunc("/user/add-to-cart", utils.RBAC(utils.RoleUser, handlers.AddToCart)).Methods("POST")
-// 	router.HandleFunc("/user/remove-from-cart", utils.RBAC(utils.RoleUser, handlers.RemoveFromCart)).Methods("POST")
-
-// 	log.Fatal(http.ListenAndServe(":8000", router))
-// }
-
 var router = httprouter.New()
 
 func init() {
