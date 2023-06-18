@@ -38,10 +38,24 @@ User should be able to
 
      `./scripts/migrations.sh`
 
+4. Run Tests
+
+   -  Create database
+
+     `createdb shopping_cart_go_test`
+
+   - Use helper bash script to run migrations
+
+     `./scripts/migrations.sh`
+
+   - Use helper bash script to run tests
+
+     `./scripts/run_tests.sh`
+
 5. Install `gin`. This is needed for live-reload during development
 
    `GOBIN=/usr/local/bin/ go install github.com/codegangsta/gin`
 
-6. Use helper bash script to run locally
+6. Use helper bash script to run server locally
 
    `./scripts/local_run.sh`
