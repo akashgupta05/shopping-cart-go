@@ -1,5 +1,7 @@
 package repository
 
+//go:generate mockgen -source=users.go -destination=mock/mock_users_repository.go -package=mock
+
 import (
 	"fmt"
 
