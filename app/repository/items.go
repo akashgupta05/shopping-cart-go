@@ -43,7 +43,7 @@ func (ir *ItemRepository) GetByName(itemName string) (*models.Item, error) {
 	item := models.Item{}
 	if err := ir.db.Where("items.name = ?", itemName).Find(&item).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return &item, nil
+			return nil, nil
 		}
 		return nil, err
 	}

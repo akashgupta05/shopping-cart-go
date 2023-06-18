@@ -61,7 +61,7 @@ func (s *AdminService) AddItems(items []*models.Item) ([]*models.Item, error) {
 			continue
 		}
 
-		if currentItem.Id != "" {
+		if currentItem != nil {
 			currentItem.Quantity += item.Quantity
 			err = s.itemRepo.Upsert(currentItem)
 			if err != nil {

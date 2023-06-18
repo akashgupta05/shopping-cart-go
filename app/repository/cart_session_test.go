@@ -48,7 +48,7 @@ func TestCartSessionsRepository_GetByUserID(t *testing.T) {
 	result, err := repo.GetByUserID(userID)
 	assert.NoError(t, err)
 	assert.Equal(t, activeCartSession.UserID, result.UserID)
-	assert.NotEmpty(t, activeCartSession.Id)
+	assert.NotEmpty(t, activeCartSession.ID)
 
 	nonExistentUserID := uuid.NewString()
 	result, err = repo.GetByUserID(nonExistentUserID)

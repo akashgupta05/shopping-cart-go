@@ -12,7 +12,7 @@ type User struct {
 	Username       string    `json:"username" gorm:"not null;column:username;default:null"`
 	PasswordDigest string    `json:"-" gorm:"not null;column:password_digest;default:null"`
 	Role           Role      `json:"role" gorm:"not null;column:role;default:null"`
-	Active         bool      `json:"active" gorm:"not null;column:active;default:null"`
+	Active         bool      `json:"active" gorm:"not null;column:active;default:true"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }

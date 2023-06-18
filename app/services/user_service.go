@@ -57,12 +57,12 @@ func (s *UserService) AddToCart(userID, itemID string, quantity int) error {
 		return err
 	}
 
-	cartItem, err := s.cartItemRepo.GetByItemID(cartSession.Id, itemID)
+	cartItem, err := s.cartItemRepo.GetByItemID(cartSession.ID, itemID)
 	if err != nil {
 		return err
 	}
 
-	if cartItem.Id != "" {
+	if cartItem != nil {
 		cartItem.Quantity = quantity
 		err := s.cartItemRepo.Upsert(cartItem)
 		if err != nil {
@@ -74,7 +74,7 @@ func (s *UserService) AddToCart(userID, itemID string, quantity int) error {
 	cartItem = &models.CartItem{
 		ItemID:    itemID,
 		Quantity:  quantity,
-		SessionID: cartSession.Id,
+		SessionID: cartSession.ID,
 	}
 
 	err = s.cartItemRepo.Upsert(cartItem)
@@ -92,7 +92,7 @@ func (s *UserService) RemoveFromCart(userID, itemID string) error {
 		return err
 	}
 
-	err = s.cartItemRepo.Delete(cartSession.Id, itemID)
+	err = s.cartItemRepo.Delete(cartSession.ID, itemID)
 	if err != nil {
 		return err
 	}
@@ -116,6 +116,7 @@ func (s *UserService) RegisterUser(username, password string, role models.Role) 
 		Username:       username,
 		PasswordDigest: passwordDigest,
 		Role:           role,
+		Active:         true,
 	}
 
 	if err = s.userRepo.Create(user); err != nil {
@@ -131,7 +132,7 @@ func (s *UserService) GetCartItems(userID string) ([]*models.CartItem, error) {
 		return nil, err
 	}
 
-	cartItems, err := s.cartItemRepo.List(cartSession.Id)
+	cartItems, err := s.cartItemRepo.List(cartSession.ID)
 	if err != nil {
 		return nil, err
 	}

@@ -43,9 +43,9 @@ func TestItemRepository_Find(t *testing.T) {
 	err := repo.Upsert(item)
 	assert.NoError(t, err)
 
-	result, err := repo.Find(item.Id)
+	result, err := repo.Find(item.ID)
 	assert.NoError(t, err)
-	assert.Equal(t, item.Id, result.Id)
+	assert.Equal(t, item.ID, result.ID)
 
 	nonExistentItemID := uuid.NewString()
 	result, err = repo.Find(nonExistentItemID)
@@ -74,7 +74,7 @@ func TestItemRepository_GetByName(t *testing.T) {
 
 	result, err := repo.GetByName(itemName)
 	assert.NoError(t, err)
-	assert.Equal(t, item.Id, result.Id)
+	assert.Equal(t, item.ID, result.ID)
 	assert.Equal(t, item.Name, result.Name)
 
 	nonExistentItemName := "Non-existent Item"

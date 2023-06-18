@@ -42,7 +42,7 @@ func (cir *CartItemsRepository) GetByItemID(sessionID, itemId string) (*models.C
 	cartItem := &models.CartItem{}
 	if err := cir.db.Where("cart_items.session_id = ? and cart_items.item_id = ?", sessionID, itemId).Find(cartItem).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return cartItem, nil
+			return nil, nil
 		}
 		return nil, err
 	}
