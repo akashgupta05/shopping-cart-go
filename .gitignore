@@ -2,3 +2,4 @@ vendor/
 *.env
 gin-bin
 *.txt
+mock/
