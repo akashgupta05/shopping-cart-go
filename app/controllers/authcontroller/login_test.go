@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/akashgupta05/shopping-cart-go/app/controllers"
 	"github.com/akashgupta05/shopping-cart-go/app/services/mock"
@@ -32,7 +33,8 @@ func TestAuthController_LoginUser(t *testing.T) {
 			Password: "testpassword",
 		}
 
-		mockAuthService.EXPECT().Login(loginPayload.Username, loginPayload.Password).Return("mockAccessToken", nil)
+		expiresAt := time.Now().Add(60 * time.Minute)
+		mockAuthService.EXPECT().LoginWithJWT(loginPayload.Username, loginPayload.Password).Return("mockJWTtoken", &expiresAt, nil)
 
 		payload, _ := json.Marshal(loginPayload)
 		request := httptest.NewRequest("POST", "/login", bytes.NewBuffer(payload))
@@ -47,7 +49,7 @@ func TestAuthController_LoginUser(t *testing.T) {
 
 		assert.True(t, response.Success)
 		assert.Empty(t, response.Error)
-		assert.Equal(t, "mockAccessToken", responseRecorder.Header().Get("Access-Token"))
+		assert.Contains(t, responseRecorder.Header().Get("Set-Cookie"), "mockJWTtoken")
 	})
 
 	t.Run("LoginUser_InvalidRequest", func(t *testing.T) {

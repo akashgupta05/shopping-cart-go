@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -52,7 +53,11 @@ func RespondWithSuccess(rw http.ResponseWriter, response *Response) {
 	}
 }
 
-func RespondWithAccessTokenSuccess(rw http.ResponseWriter, token string, response *Response) {
-	rw.Header().Set("Access-Token", token)
+func RespondWithJWTSuccess(rw http.ResponseWriter, token string, expiresAt *time.Time, response *Response) {
+	http.SetCookie(rw, &http.Cookie{
+		Name:    "token",
+		Value:   token,
+		Expires: *expiresAt,
+	})
 	RespondWithSuccess(rw, response)
 }

@@ -3,6 +3,7 @@ module github.com/akashgupta05/shopping-cart-go
 go 1.20
 
 require (
+	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.3.0
 	github.com/jinzhu/gorm v1.9.16

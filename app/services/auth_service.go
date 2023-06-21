@@ -5,21 +5,26 @@ package services
 import (
 	"errors"
 	"fmt"
+	"os"
+	"time"
 
 	"github.com/akashgupta05/shopping-cart-go/app/models"
 	"github.com/akashgupta05/shopping-cart-go/app/repository"
 	"github.com/akashgupta05/shopping-cart-go/utils"
+	"github.com/golang-jwt/jwt/v5"
 )
 
+var JWT_SECRET_KEY = []byte(os.Getenv("JWT_SECRET_KEY"))
+var JWT_TOKEN_EXPIRY = 10 * time.Minute
+
 type AuthServiceInterface interface {
-	Login(username, password string) (string, error)
-	Logout(accessToken string) error
-	ValidateAccessToken(accessToken string, role string) (bool, string)
+	LoginWithJWT(username, password string) (string, *time.Time, error)
+	ValidateJWT(jwtToken, role string) (bool, string)
+	RefreshJWT(userID string) (string, *time.Time, error)
 }
 
 type AuthService struct {
 	userRepo        repository.UserRepositoryInterface
-	accessTokenRepo repository.AccessTokensRepositoryInterface
 	cartSessionRepo repository.CartSessionsRepositoryInterface
 }
 
@@ -27,46 +32,49 @@ type AuthService struct {
 func NewAuthService() *AuthService {
 	return &AuthService{
 		userRepo:        repository.NewUserRepository(),
-		accessTokenRepo: repository.NewAccessTokensRepository(),
 		cartSessionRepo: repository.NewCartSessionsRepository(),
 	}
 }
 
-func (s *AuthService) Login(username, password string) (string, error) {
-	user, err := s.userRepo.FindByName(username)
+type Claims struct {
+	UserID string `json:"user_id"`
+	Role   string `json:"role"`
+	jwt.RegisteredClaims
+}
+
+func (s *AuthService) ValidateJWT(jwtToken, role string) (bool, string) {
+	claims := &Claims{}
+
+	token, err := jwt.ParseWithClaims(jwtToken, claims, func(token *jwt.Token) (interface{}, error) {
+		return JWT_SECRET_KEY, nil
+	})
+
+	if err != nil || !token.Valid {
+		return false, ""
+	}
+
+	return models.Role(claims.Role) == models.Role(role), claims.UserID
+}
+
+func (s *AuthService) LoginWithJWT(username, password string) (string, *time.Time, error) {
+	user, err := s.validateUsernamePassword(username, password)
 	if err != nil {
-		return "", fmt.Errorf("Failed to fetch user: %s", err.Error())
+		return "", nil, fmt.Errorf("Failed to validate username and password: %s", err.Error())
 	}
 
-	if !user.Active {
-		return "", errors.New("Suspended User")
-	}
-
-	if !utils.ComparePasswordDigest(password, user.PasswordDigest) {
-		return "", fmt.Errorf("Invalid Password: %s", err.Error())
-	}
-
-	randomHex, err := utils.RandomHex()
+	token, expiresAt := s.generateJWT(user)
+	tokenString, err := token.SignedString(JWT_SECRET_KEY)
 	if err != nil {
-		return "", fmt.Errorf("Failed to generate token: %s", err.Error())
-	}
-
-	accessToken := &models.AccessToken{
-		UserID: user.ID,
-		Active: true,
-		Token:  randomHex,
-	}
-	if err := s.accessTokenRepo.Upsert(accessToken); err != nil {
-		return "", nil
+		return "", nil, fmt.Errorf("Failed to generate token %s", err.Error())
 	}
 
 	cartSession, err := s.cartSessionRepo.GetByUserID(user.ID)
 	if err != nil {
-		return "", nil
+		return "", nil, nil
 	}
 
 	if cartSession != nil {
-		return accessToken.Token, nil
+		return tokenString, expiresAt, nil
 	}
 
 	cartSession = &models.CartSession{
@@ -75,30 +83,53 @@ func (s *AuthService) Login(username, password string) (string, error) {
 	}
 
 	if err := s.cartSessionRepo.Upsert(cartSession); err != nil {
-		return accessToken.Token, fmt.Errorf("Failed to create cart session %s", err.Error())
+		return tokenString, expiresAt, fmt.Errorf("Failed to create cart session %s", err.Error())
 	}
 
-	return accessToken.Token, nil
+	return tokenString, expiresAt, nil
 }
 
-func (s *AuthService) Logout(accessToken string) error {
-	if err := s.accessTokenRepo.MarkInactive(accessToken); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *AuthService) ValidateAccessToken(accessToken string, role string) (bool, string) {
-	userID, err := s.accessTokenRepo.ValidateToken(accessToken)
-	if err != nil {
-		return false, ""
-	}
-
+func (s *AuthService) RefreshJWT(userID string) (string, *time.Time, error) {
 	user, err := s.userRepo.Find(userID)
 	if err != nil {
-		return false, ""
+		return "", nil, fmt.Errorf("Failed to validate username and password: %s", err.Error())
 	}
 
-	return user.Role == models.Role(role), user.ID
+	token, expiresAt := s.generateJWT(user)
+	tokenString, err := token.SignedString(JWT_SECRET_KEY)
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed to generate token %s", err.Error())
+	}
+
+	return tokenString, expiresAt, nil
+}
+
+func (s *AuthService) validateUsernamePassword(username, password string) (*models.User, error) {
+	user, err := s.userRepo.FindByName(username)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch user: %s", err.Error())
+	}
+
+	if !user.Active {
+		return nil, errors.New("Suspended User")
+	}
+
+	if !utils.ComparePasswordDigest(password, user.PasswordDigest) {
+		return nil, fmt.Errorf("Invalid Password")
+	}
+
+	return user, nil
+}
+
+func (s *AuthService) generateJWT(user *models.User) (*jwt.Token, *time.Time) {
+	expirationTime := time.Now().Add(JWT_TOKEN_EXPIRY)
+	claims := &Claims{
+		UserID: user.ID,
+		Role:   string(user.Role),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+		},
+	}
+
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims), &expirationTime
 }

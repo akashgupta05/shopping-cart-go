@@ -10,6 +10,7 @@ import (
 type AuthControllerInterface interface {
 	LoginUser(rw http.ResponseWriter, r *http.Request, ps httprouter.Params)
 	LogoutUser(rw http.ResponseWriter, r *http.Request, ps httprouter.Params)
+	Refresh(rw http.ResponseWriter, r *http.Request, ps httprouter.Params)
 }
 
 type AuthController struct {

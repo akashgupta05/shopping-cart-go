@@ -16,11 +16,9 @@ func TestAdminService_SuspendUser(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUserRepo := mock.NewMockUserRepositoryInterface(ctrl)
-	mockAccessTokenRepo := mock.NewMockAccessTokensRepositoryInterface(ctrl)
 
 	service := &AdminService{
-		userRepo:         mockUserRepo,
-		accessTokensRepo: mockAccessTokenRepo,
+		userRepo: mockUserRepo,
 	}
 
 	userID := "12345"
@@ -30,7 +28,6 @@ func TestAdminService_SuspendUser(t *testing.T) {
 	}
 
 	mockUserRepo.EXPECT().Find(userID).Return(user, nil)
-	mockAccessTokenRepo.EXPECT().MarkInactiveForUser(userID).Return(nil)
 	mockUserRepo.EXPECT().Suspend(user).Return(nil)
 
 	err := service.SuspendUser(userID)
