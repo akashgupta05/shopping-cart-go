@@ -16,17 +16,15 @@ type AdminServiceInterface interface {
 }
 
 type AdminService struct {
-	userRepo         repository.UserRepositoryInterface
-	itemRepo         repository.ItemRepositoryInterface
-	accessTokensRepo repository.AccessTokensRepositoryInterface
+	userRepo repository.UserRepositoryInterface
+	itemRepo repository.ItemRepositoryInterface
 }
 
 // NewAdminService returns instance of AdminService
 func NewAdminService() *AdminService {
 	return &AdminService{
-		userRepo:         repository.NewUserRepository(),
-		itemRepo:         repository.NewItemRepository(),
-		accessTokensRepo: repository.NewAccessTokensRepository(),
+		userRepo: repository.NewUserRepository(),
+		itemRepo: repository.NewItemRepository(),
 	}
 }
 
@@ -38,11 +36,6 @@ func (s *AdminService) SuspendUser(userID string) error {
 
 	if user.Role == models.ADMIN {
 		return errors.New("Cannot suspend admin user")
-	}
-
-	err = s.accessTokensRepo.MarkInactiveForUser(userID)
-	if err != nil {
-		logrus.Error("Failed to mark access tokens inactive for user", userID, err.Error())
 	}
 
 	err = s.userRepo.Suspend(user)

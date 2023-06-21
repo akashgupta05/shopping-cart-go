@@ -35,22 +35,6 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
--- Name: access_tokens; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.access_tokens (
-    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    user_id uuid NOT NULL,
-    token character varying(40) DEFAULT false NOT NULL,
-    active boolean DEFAULT true NOT NULL,
-    created_at timestamp with time zone,
-    updated_at timestamp with time zone
-);
-
-
-ALTER TABLE public.access_tokens OWNER TO postgres;
-
---
 -- Name: cart_items; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -117,7 +101,7 @@ ALTER TABLE public.schema_migrations OWNER TO postgres;
 CREATE TABLE public.users (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     username character varying(32) NOT NULL,
-    password_digest character varying(32) DEFAULT false NOT NULL,
+    password_digest character varying(64) DEFAULT false NOT NULL,
     role character varying(16) NOT NULL,
     active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone,
@@ -126,14 +110,6 @@ CREATE TABLE public.users (
 
 
 ALTER TABLE public.users OWNER TO postgres;
-
---
--- Name: access_tokens access_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.access_tokens
-    ADD CONSTRAINT access_tokens_pkey PRIMARY KEY (id);
-
 
 --
 -- Name: cart_items cart_items_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres

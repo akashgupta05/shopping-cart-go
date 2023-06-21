@@ -28,13 +28,13 @@ func (ac *AuthController) LoginUser(rw http.ResponseWriter, r *http.Request, ps 
 		return
 	}
 
-	accessToken, err := ac.authService.Login(loginPayload.Username, loginPayload.Password)
+	jwtToken, expiresAt, err := ac.authService.LoginWithJWT(loginPayload.Username, loginPayload.Password)
 	if err != nil {
 		controllers.RespondWithError(rw, http.StatusInternalServerError, err)
 		return
 	}
 
-	controllers.RespondWithAccessTokenSuccess(rw, accessToken, &controllers.Response{Success: true})
+	controllers.RespondWithJWTSuccess(rw, jwtToken, expiresAt, &controllers.Response{Success: true})
 }
 
 func validateLoginRequest(loginPayload *LoginPayload) error {

@@ -43,6 +43,8 @@ func Init(router *httprouter.Router) {
 	router.POST("/admins/suspend_user", adminAuthMiddleware(adminsController.SuspendUser))
 	router.POST("/admins/add_items", adminAuthMiddleware(adminsController.AddItems))
 
+	router.POST("/users/refresh", userAuthMiddleware(authController.Refresh))
+	router.POST("/admins/refresh", adminAuthMiddleware(authController.Refresh))
 }
 
 func serveEndpoint(nextHandler func(rw http.ResponseWriter, r *http.Request, ps httprouter.Params)) httprouter.Handle {
@@ -57,8 +59,12 @@ func adminAuthMiddleware(nextHandler func(rw http.ResponseWriter, r *http.Reques
 	return func(w http.ResponseWriter, request *http.Request, ps httprouter.Params) {
 		defer recoverFunc(w)
 
-		accessToken := request.Header.Get("Access-Token")
-		valid, _ := authService.ValidateAccessToken(accessToken, string(models.ADMIN))
+		token := getCookie(w, request)
+		if token == "" {
+			return
+		}
+
+		valid, _ := authService.ValidateJWT(token, string(models.ADMIN))
 		if !valid {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
@@ -73,8 +79,12 @@ func userAuthMiddleware(nextHandler func(rw http.ResponseWriter, r *http.Request
 	return func(w http.ResponseWriter, request *http.Request, ps httprouter.Params) {
 		defer recoverFunc(w)
 
-		accessToken := request.Header.Get("Access-Token")
-		valid, userID := authService.ValidateAccessToken(accessToken, string(models.USER))
+		token := getCookie(w, request)
+		if token == "" {
+			return
+		}
+
+		valid, userID := authService.ValidateJWT(token, string(models.USER))
 		if !valid || userID == "" {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
@@ -97,6 +107,21 @@ func recoverFunc(w http.ResponseWriter) {
 		setCommonHeaders(w)
 		w.Write(respBuytes)
 	}
+}
+
+func getCookie(w http.ResponseWriter, request *http.Request) string {
+	c, err := request.Cookie("token")
+	if err != nil {
+		if err == http.ErrNoCookie {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return ""
+		}
+
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return ""
+	}
+
+	return c.Value
 }
 
 func setCommonHeaders(w http.ResponseWriter) {

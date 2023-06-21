@@ -1,123 +1,152 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/akashgupta05/shopping-cart-go/app/models"
 	"github.com/akashgupta05/shopping-cart-go/app/repository/mock"
 	"github.com/akashgupta05/shopping-cart-go/utils"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
-type AccessTokenMatcher struct {
-	UserID string
-	Active bool
-}
-
-func (m *AccessTokenMatcher) Matches(x interface{}) bool {
-	token, ok := x.(*models.AccessToken)
-	if !ok {
-		return false
-	}
-
-	return token.UserID == m.UserID && token.Active == m.Active && token.Token != ""
-}
-
-func (m *AccessTokenMatcher) String() string {
-	return fmt.Sprintf("matches access token: %s", m.UserID)
-}
-
-func TestAuthService_Login(t *testing.T) {
+func TestAuthService_LoginWithJWT(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockUserRepo := mock.NewMockUserRepositoryInterface(ctrl)
-	mockAccessTokenRepo := mock.NewMockAccessTokensRepositoryInterface(ctrl)
 	mockCartSessionRepo := mock.NewMockCartSessionsRepositoryInterface(ctrl)
 
-	authService := &AuthService{
+	authService := AuthService{
 		userRepo:        mockUserRepo,
-		accessTokenRepo: mockAccessTokenRepo,
 		cartSessionRepo: mockCartSessionRepo,
 	}
 
-	passDigest, err := utils.GeneratePasswordDigest("password")
+	username := "testuser"
+	password := "testpassword"
+	expectedUserID := "12345"
+	expectedRole := string(models.USER)
+	passDigest, err := utils.GeneratePasswordDigest("testpassword")
 	assert.Nil(t, err)
 
-	mockUser := &models.User{
-		ID:             uuid.NewString(),
-		Username:       "testuser",
-		PasswordDigest: passDigest,
-		Role:           models.USER,
-		Active:         true,
-	}
-	mockUserRepo.EXPECT().FindByName("testuser").Return(mockUser, nil)
+	t.Run("Valid credentials", func(t *testing.T) {
+		user := &models.User{
+			ID:             expectedUserID,
+			Role:           models.Role(expectedRole),
+			Active:         true,
+			PasswordDigest: passDigest,
+		}
 
-	mockAccessToken := &AccessTokenMatcher{
-		UserID: mockUser.ID,
-		Active: true,
-	}
-	mockAccessTokenRepo.EXPECT().Upsert(mockAccessToken).Return(nil)
+		mockUserRepo.EXPECT().FindByName(username).Return(user, nil)
+		mockCartSessionRepo.EXPECT().GetByUserID(expectedUserID).Return(&models.CartSession{}, nil)
 
-	mockCartSessionRepo.EXPECT().GetByUserID(mockUser.ID).Return(nil, nil)
-	mockCartSession := &models.CartSession{
-		UserID: mockUser.ID,
-		Status: models.ACTIVE,
-	}
-	mockCartSessionRepo.EXPECT().Upsert(mockCartSession).Return(nil)
+		tokenString, expirationTime, err := authService.LoginWithJWT(username, password)
 
-	token, err := authService.Login("testuser", "password")
+		assert.NoError(t, err)
+		assert.NotNil(t, tokenString)
+		assert.NotNil(t, expirationTime)
+	})
 
-	assert.NoError(t, err, "Login should not return an error")
-	assert.NotEmpty(t, token, "Access token should not be empty")
+	t.Run("Valid credentials and cart session doesn't exist", func(t *testing.T) {
+		user := &models.User{
+			ID:             expectedUserID,
+			Role:           models.Role(expectedRole),
+			Active:         true,
+			PasswordDigest: passDigest,
+		}
+
+		mockUserRepo.EXPECT().FindByName(username).Return(user, nil)
+		mockCartSessionRepo.EXPECT().GetByUserID(expectedUserID).Return(nil, nil)
+		mockCartSessionRepo.EXPECT().Upsert(gomock.Any()).Return(nil)
+
+		tokenString, expirationTime, err := authService.LoginWithJWT(username, password)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, tokenString)
+		assert.NotNil(t, *expirationTime)
+	})
+
+	t.Run("Invalid username and password", func(t *testing.T) {
+		mockUserRepo.EXPECT().FindByName(username).Return(nil, errors.New("user not found"))
+
+		tokenString, expirationTime, err := authService.LoginWithJWT(username, password)
+
+		assert.EqualError(t, err, fmt.Sprintf("Failed to validate username and password: Failed to fetch user: user not found"))
+		assert.Empty(t, tokenString)
+		assert.Nil(t, expirationTime)
+	})
+
+	t.Run("Suspended user", func(t *testing.T) {
+		user := &models.User{
+			ID:             expectedUserID,
+			Role:           models.Role(expectedRole),
+			Active:         false,
+			PasswordDigest: passDigest,
+		}
+
+		mockUserRepo.EXPECT().FindByName(username).Return(user, nil)
+
+		tokenString, expirationTime, err := authService.LoginWithJWT(username, password)
+
+		assert.EqualError(t, err, "Failed to validate username and password: Suspended User")
+		assert.Empty(t, tokenString)
+		assert.Nil(t, expirationTime)
+	})
+
+	t.Run("Invalid password", func(t *testing.T) {
+		user := &models.User{
+			ID:             expectedUserID,
+			Role:           models.Role(expectedRole),
+			Active:         true,
+			PasswordDigest: passDigest,
+		}
+
+		mockUserRepo.EXPECT().FindByName(username).Return(user, nil)
+
+		tokenString, expirationTime, err := authService.LoginWithJWT(username, "wrong_password")
+
+		assert.EqualError(t, err, "Failed to validate username and password: Invalid Password")
+		assert.Empty(t, tokenString)
+		assert.Nil(t, expirationTime)
+	})
 }
 
-func TestAuthService_Logout(t *testing.T) {
+func TestAuthService_ValidateJWT(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockAccessTokenRepo := mock.NewMockAccessTokensRepositoryInterface(ctrl)
-
-	authService := &AuthService{
-		accessTokenRepo: mockAccessTokenRepo,
+	authService := AuthService{}
+	role := string(models.USER)
+	userID := uuid.NewString()
+	expirationTime := time.Now().Add(JWT_TOKEN_EXPIRY)
+	claims := &Claims{
+		UserID: userID,
+		Role:   role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+		},
 	}
 
-	mockAccessToken := "token123"
-	mockAccessTokenRepo.EXPECT().MarkInactive(mockAccessToken).Return(nil)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	jwtToken, err := token.SignedString(JWT_SECRET_KEY)
+	assert.Nil(t, err)
 
-	err := authService.Logout(mockAccessToken)
+	t.Run("Valid JWT token", func(t *testing.T) {
+		valid, actualUserID := authService.ValidateJWT(jwtToken, role)
 
-	assert.NoError(t, err, "Logout should not return an error")
-}
+		assert.True(t, valid)
+		assert.Equal(t, userID, actualUserID)
+	})
 
-func TestAuthService_ValidateAccessToken(t *testing.T) {
+	t.Run("Invalid JWT token", func(t *testing.T) {
+		valid, actualUserID := authService.ValidateJWT("invalid_token", role)
 
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockAccessTokenRepo := mock.NewMockAccessTokensRepositoryInterface(ctrl)
-	mockUserRepo := mock.NewMockUserRepositoryInterface(ctrl)
-
-	authService := &AuthService{
-		accessTokenRepo: mockAccessTokenRepo,
-		userRepo:        mockUserRepo,
-	}
-
-	mockAccessToken := "token123"
-	mockUserID := "user123"
-	mockAccessTokenRepo.EXPECT().ValidateToken(mockAccessToken).Return(mockUserID, nil)
-
-	mockUser := &models.User{
-		ID:   mockUserID,
-		Role: models.USER,
-	}
-	mockUserRepo.EXPECT().Find(mockUserID).Return(mockUser, nil)
-
-	valid, userID := authService.ValidateAccessToken(mockAccessToken, "user")
-
-	assert.True(t, valid, "Access token should be valid")
-	assert.Equal(t, mockUserID, userID, "User ID should match")
+		assert.False(t, valid)
+		assert.Empty(t, actualUserID)
+	})
 }
